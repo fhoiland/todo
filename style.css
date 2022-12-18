@@ -229,3 +229,8 @@ input:checked ~ .bubble::after {
     text-decoration: line-through;
     color: var(--grey);
 }
+
+@media (max-width: 600px) {
+    input[type="text"] {
+      width: 80%; /* Reduser bredden på input-elementet på mindre skjermer */
+    }
