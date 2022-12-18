@@ -231,6 +231,11 @@ input:checked ~ .bubble::after {
 }
 
 @media (max-width: 500px) {
+
+    .todo-item .todo-content input {
+        font-size: 0.9rem; 
+    }
+
     input[type="text"] {
       width: 80%; /* Reduser bredden på input-elementet på mindre skjermer */
     }
