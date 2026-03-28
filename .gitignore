@@ -1,0 +1,26 @@
+# Secrets and local environment
+.env
+.env.*
+*.env
+
+# Certificates and keys
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+
+# Local config / exported credentials
+secrets.json
+config.local.json
+credentials.json
+
+# Node-RED sensitive files
+flows_cred.json
+*flows_cred.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
