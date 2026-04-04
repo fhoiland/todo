@@ -1,0 +1,173 @@
+[
+    {
+        "id": "b02c532bed475238",
+        "type": "tab",
+        "label": "Opta DI1 Alarm",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "9149ba78db3adb8f",
+        "type": "http request",
+        "z": "b02c532bed475238",
+        "name": "HTTP ntfy send",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://ntfy/maskinvarsler",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 1000,
+        "y": 340,
+        "wires": [
+            [
+                "4f0409359a7cfc90"
+            ]
+        ]
+    },
+    {
+        "id": "4f0409359a7cfc90",
+        "type": "debug",
+        "z": "b02c532bed475238",
+        "name": "Debug ntfy response",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "91294859df2c010b",
+        "type": "mqtt in",
+        "z": "b02c532bed475238",
+        "name": "MQTT DI1 in - Opta",
+        "topic": "opta/di1",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "a0d0fb5420a8b0ea",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 110,
+        "y": 340,
+        "wires": [
+            [
+                "1238263f1f3e7e47"
+            ]
+        ]
+    },
+    {
+        "id": "1238263f1f3e7e47",
+        "type": "function",
+        "z": "b02c532bed475238",
+        "name": "Filter DI1 alarm true",
+        "func": "if (msg.payload === true || msg.payload === false) {\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 340,
+        "wires": [
+            [
+                "cc01639a4315617b"
+            ]
+        ]
+    },
+    {
+        "id": "0b5727c6ebebb9f9",
+        "type": "function",
+        "z": "b02c532bed475238",
+        "name": "Build ntfy DI1 alarm",
+        "func": "if (msg.payload !== true) {\n    return null;\n}\n\nmsg.headers = {\n    \"Title\": \"Hyttedass alarm\",\n    \"Priority\": \"high\",\n    \"Tags\": \"warning,rotating_light\"\n};\n\nmsg.payload = \"🚨💩 Alarm: Nå koker det i do-systemet\";\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 790,
+        "y": 340,
+        "wires": [
+            [
+                "9149ba78db3adb8f"
+            ]
+        ]
+    },
+    {
+        "id": "cc01639a4315617b",
+        "type": "function",
+        "z": "b02c532bed475238",
+        "name": "Rate limit DI1 24h",
+        "func": "let resendMs = 24 * 60 * 60 * 1000; // 24 timer\nlet resetMs = 30 * 1000;            // 30 sekunder uten alarm\nlet now = Date.now();\n\nlet lastSent = flow.get(\"di1_last_sent\") || 0;\nlet falseSince = flow.get(\"di1_false_since\") || 0;\n\n// Hvis alarmen har vært borte lenge nok siden sist false,\n// gjør systemet klart for ny alarm\nif (falseSince > 0 && (now - falseSince) >= resetMs) {\n    flow.set(\"di1_alarm_ready\", true);\n}\n\nlet alarmReady = flow.get(\"di1_alarm_ready\");\nif (alarmReady === undefined) {\n    alarmReady = true;\n}\n\n// Alarm aktiv\nif (msg.payload === true) {\n    flow.set(\"di1_false_since\", 0);\n\n    if (alarmReady || (now - lastSent) >= resendMs) {\n        flow.set(\"di1_last_sent\", now);\n        flow.set(\"di1_alarm_ready\", false);\n        return msg;\n    }\n\n    return null;\n}\n\n// Alarm borte\nif (msg.payload === false) {\n    if (falseSince === 0) {\n        flow.set(\"di1_false_since\", now);\n    }\n\n    return null;\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 570,
+        "y": 340,
+        "wires": [
+            [
+                "0b5727c6ebebb9f9"
+            ]
+        ]
+    },
+    {
+        "id": "114820623b254f06",
+        "type": "comment",
+        "z": "b02c532bed475238",
+        "name": "DI1 alarm fra Opta via MQTT til ntfy",
+        "info": "DI1 alarm fra Opta via MQTT til ntfy",
+        "x": 640,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "a0d0fb5420a8b0ea",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "mosquitto",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    }
+]
