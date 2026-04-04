@@ -1,0 +1,337 @@
+[
+    {
+        "id": "34599e5d14ad2d57",
+        "type": "tab",
+        "label": "Varsel på dass",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "inject_offline",
+        "type": "inject",
+        "z": "34599e5d14ad2d57",
+        "name": "Trigger OFFLINE",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "",
+        "topic": "",
+        "x": 140,
+        "y": 340,
+        "wires": [
+            [
+                "function_offline"
+            ]
+        ]
+    },
+    {
+        "id": "inject_online",
+        "type": "inject",
+        "z": "34599e5d14ad2d57",
+        "name": "Trigger ONLINE",
+        "props": [],
+        "repeat": "",
+        "once": false,
+        "x": 140,
+        "y": 420,
+        "wires": [
+            [
+                "function_online"
+            ]
+        ]
+    },
+    {
+        "id": "function_offline",
+        "type": "function",
+        "z": "34599e5d14ad2d57",
+        "name": "OFFLINE logic",
+        "func": "let state = flow.get(\"device_state\") || \"unknown\";\n\nif (state !== \"offline\") {\n    flow.set(\"device_state\", \"offline\");\n\n    msg.payload = \"🚨 OFFLINE - Test enhet\";\n    msg.headers = {\n        \"Content-Type\": \"text/plain\"\n    };\n    return msg;\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 340,
+        "wires": [
+            [
+                "http_ntfy"
+            ]
+        ]
+    },
+    {
+        "id": "function_online",
+        "type": "function",
+        "z": "34599e5d14ad2d57",
+        "name": "ONLINE logic",
+        "func": "let state = flow.get(\"device_state\") || \"unknown\";\n\nif (state !== \"online\") {\n    flow.set(\"device_state\", \"online\");\n\n    msg.payload = \"✅ ONLINE - Test enhet\";\n    msg.headers = {\n        \"Content-Type\": \"text/plain\"\n    };\n    return msg;\n}\n\nreturn null;",
+        "outputs": 1,
+        "x": 480,
+        "y": 420,
+        "wires": [
+            [
+                "http_ntfy"
+            ]
+        ]
+    },
+    {
+        "id": "http_ntfy",
+        "type": "http request",
+        "z": "34599e5d14ad2d57",
+        "name": "HTTP ntfy send",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://ntfy/maskinvarsler",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": false,
+        "headers": [],
+        "x": 1060,
+        "y": 300,
+        "wires": [
+            [
+                "debug_ntfy"
+            ]
+        ]
+    },
+    {
+        "id": "debug_ntfy",
+        "type": "debug",
+        "z": "34599e5d14ad2d57",
+        "name": "Debug ntfy response",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1300,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "b66cf107aa964fb5",
+        "type": "function",
+        "z": "34599e5d14ad2d57",
+        "name": "Heartbeat inn",
+        "func": "let allowedDevices = [\n    \"plc-001\",\n    \"plc-002\"\n];\n\n// 🔥 Viktigste linje – støtter begge input-typer\nlet deviceId = msg.deviceId || msg.payload?.device_id;\n\nif (!deviceId) {\n    node.warn(\"Mangler deviceId (hverken msg.deviceId eller payload.device_id)\");\n    return null;\n}\n\nif (!allowedDevices.includes(deviceId)) {\n    node.warn(\"Ukjent device forsøkte tilgang: \" + deviceId);\n    return null;\n}\n\nlet devices = flow.get(\"devices\", \"default\") || {};\nlet now = Date.now();\nlet nowStr = new Date().toLocaleString();\n\nif (!devices[deviceId]) {\n    devices[deviceId] = {\n        state: \"unknown\",\n        last_seen: 0,\n        missed_count: 0\n    };\n}\n\n// Oppdater heartbeat\ndevices[deviceId].last_seen = now;\ndevices[deviceId].missed_count = 0;\n\n// Send ONLINE kun ved endring\nif (devices[deviceId].state !== \"online\") {\n    devices[deviceId].state = \"online\";\n    flow.set(\"devices\", devices, \"default\");\n\n    msg.payload = `🟢 ENHET ONLINE\nEnhet: ${deviceId}\nTid: ${nowStr}`;\n\n    msg.headers = {\n        \"Content-Type\": \"text/plain\"\n    };\n\n    return msg;\n}\n\nflow.set(\"devices\", devices, \"default\");\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 180,
+        "wires": [
+            [
+                "http_ntfy"
+            ]
+        ]
+    },
+    {
+        "id": "c513c21b0ff3cc74",
+        "type": "inject",
+        "z": "34599e5d14ad2d57",
+        "name": "Check timeout",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 260,
+        "wires": [
+            [
+                "b1a791716d09c105"
+            ]
+        ]
+    },
+    {
+        "id": "b1a791716d09c105",
+        "type": "function",
+        "z": "34599e5d14ad2d57",
+        "name": "Check offline",
+        "func": "node.warn(\"CHECK RUNNING\");\n\nlet devices = flow.get(\"devices\", \"default\") || {};\nlet timeout = 15000;\nlet now = Date.now();\nlet nowStr = new Date().toLocaleString();\n\nfor (let deviceId in devices) {\n\n    let lastSeen = devices[deviceId].last_seen || 0;\n    let state = devices[deviceId].state || \"unknown\";\n    let missed = devices[deviceId].missed_count || 0;\n\n    if ((now - lastSeen) > timeout) {\n\n        devices[deviceId].missed_count = missed + 1;\n\n        if (devices[deviceId].missed_count === 1) {\n            devices[deviceId].state = \"suspect\";\n            flow.set(\"devices\", devices, \"default\");\n            return null;\n        }\n\n        if (devices[deviceId].missed_count >= 2 && state !== \"offline\") {\n            devices[deviceId].state = \"offline\";\n            flow.set(\"devices\", devices, \"default\");\n\n            msg.payload = `🔴 ENHET OFFLINE\nEnhet: ${deviceId}\nTid: ${nowStr}`;\n\n            msg.headers = {\n                \"Content-Type\": \"text/plain\"\n            };\n\n            return msg;\n        }\n    }\n}\n\nflow.set(\"devices\", devices, \"default\");\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 490,
+        "y": 260,
+        "wires": [
+            [
+                "http_ntfy"
+            ]
+        ]
+    },
+    {
+        "id": "9083743cae1a4e7c",
+        "type": "inject",
+        "z": "34599e5d14ad2d57",
+        "name": "Heartbeat test2",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "v": "",
+                "vt": "date"
+            },
+            {
+                "p": "deviceId",
+                "v": "plc-002",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 180,
+        "wires": [
+            [
+                "b66cf107aa964fb5"
+            ]
+        ]
+    },
+    {
+        "id": "e4428a027197f325",
+        "type": "mqtt in",
+        "z": "34599e5d14ad2d57",
+        "name": "MQTT DI1 in - Opta",
+        "topic": "opta/di1",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "a0d0fb5420a8b0ea",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 100,
+        "wires": [
+            [
+                "7738fc9d06937f94"
+            ]
+        ]
+    },
+    {
+        "id": "7738fc9d06937f94",
+        "type": "function",
+        "z": "34599e5d14ad2d57",
+        "name": "Filter DI1 alarm true",
+        "func": "if (msg.payload === true || msg.payload === false) {\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 100,
+        "wires": [
+            [
+                "43db8ee488ce7f54"
+            ]
+        ]
+    },
+    {
+        "id": "13bb3b6e4c6320f8",
+        "type": "function",
+        "z": "34599e5d14ad2d57",
+        "name": "Build ntfy DI1 alarm",
+        "func": "if (msg.payload !== true) {\n    return null;\n}\n\nmsg.headers = {\n    \"Title\": \"Opta alarm\",\n    \"Priority\": \"high\",\n    \"Tags\": \"warning,rotating_light\"\n};\n\nmsg.payload = \"DI1 aktiv på opta-1\";\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 810,
+        "y": 100,
+        "wires": [
+            [
+                "http_ntfy"
+            ]
+        ]
+    },
+    {
+        "id": "43db8ee488ce7f54",
+        "type": "function",
+        "z": "34599e5d14ad2d57",
+        "name": "Rate limit DI1 24h",
+        "func": "let resendMs = 24 * 60 * 60 * 1000;   // 24 timer\nlet resetMs  = 10 * 60 * 1000;        // 10 minutter uten alarm\nlet now = Date.now();\n\nlet lastSent = flow.get(\"di1_last_sent\") || 0;\nlet falseSince = flow.get(\"di1_false_since\") || 0;\n\n// Alarm aktiv\nif (msg.payload === true) {\n    // alarmen er tilbake, så vi nuller false-timer\n    flow.set(\"di1_false_since\", 0);\n\n    if ((now - lastSent) >= resendMs) {\n        flow.set(\"di1_last_sent\", now);\n        return msg;\n    }\n\n    return null;\n}\n\n// Alarm ikke aktiv\nif (msg.payload === false) {\n    if (falseSince === 0) {\n        flow.set(\"di1_false_since\", now);\n        return null;\n    }\n\n    // hvis signalet har vært borte lenge nok, nullstill resend-timeren\n    if ((now - falseSince) >= resetMs) {\n        flow.set(\"di1_last_sent\", 0);\n    }\n\n    return null;\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 100,
+        "wires": [
+            [
+                "13bb3b6e4c6320f8"
+            ]
+        ]
+    },
+    {
+        "id": "a0d0fb5420a8b0ea",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "mosquitto",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    }
+]
